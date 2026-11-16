@@ -7,13 +7,18 @@
 export type EmployerSource = "tencent" | "bytedance" | "meituan";
 export type DiscoverySource = AtsSource | EmployerSource;
 export type EmployerScanOutcome = { state: "complete" | "partial" | "failed"; message: string };
-export type AtsSource = "greenhouse" | "lever" | "ashby" | "workday";
-export const ATS_SOURCES: AtsSource[] = ["greenhouse", "lever", "ashby", "workday"];
+export type AtsSource = "greenhouse" | "lever" | "ashby" | "workday" | "icims" | "bamboohr" | "paylocity" | "join" | "workable";
+export const ATS_SOURCES: AtsSource[] = ["greenhouse", "lever", "ashby", "workday", "icims", "bamboohr", "paylocity", "join", "workable"];
 export const ATS_LABEL: Record<AtsSource, string> = {
   greenhouse: "Greenhouse",
   lever: "Lever",
   ashby: "Ashby",
   workday: "Workday",
+  icims: "iCIMS",
+  bamboohr: "BambooHR",
+  paylocity: "Paylocity",
+  join: "Join.com",
+  workable: "Workable",
 };
 
 /** The full UI filter state. The keyword/location lists mirror scan.mjs's
