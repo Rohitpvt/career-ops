@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { X, Ban, Clock, MapPin, ChevronDown, SlidersHorizontal } from "lucide-react";
+import { X, Ban, Clock, MapPin, ChevronDown, SlidersHorizontal, GraduationCap, Briefcase, Sparkles, Building2, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { ATS_LABEL, ATS_SOURCES, cleanChips, type AtsSource, type ExploreFilters } from "@/lib/explore";
+import { ATS_LABEL, ATS_SOURCES, cleanChips, type AtsSource, type ExploreFilters, type ExperienceLevel } from "@/lib/explore";
 
 import { CHINA_PRESET, CHINA_SOURCES, EMPLOYER_LABEL } from "@/lib/employer-preset.mjs";
 import type { EmployerSource } from "@/lib/explore";
@@ -14,6 +14,24 @@ const RECENCY = [
   { label: "7d", days: 7 },
   { label: "14d", days: 14 },
   { label: "30d", days: 30 },
+];
+
+const EXPERIENCE_OPTIONS: { id: ExperienceLevel; label: string; desc: string }[] = [
+  { id: "entry", label: "Fresher / Entry (0–2 yrs)", desc: "Freshers, Junior Developers, Associate Engineers (0–2 years)" },
+  { id: "mid", label: "Mid-Level (2–5 yrs)", desc: "Software engineers with 2–5 years experience" },
+  { id: "senior", label: "Senior / Lead (5+ yrs)", desc: "Senior, Lead, Staff, Principal, and Architect roles" },
+  { id: "all", label: "All Levels", desc: "No experience-level filtering" },
+];
+
+const SENIOR_EXCLUSIONS = [
+  "word:Senior", "word:Sr", "word:Lead", "word:Principal",
+  "word:Staff", "word:Director", "word:Manager", "word:VP",
+  "word:Head", "III", "IV", "V"
+];
+
+const JUNIOR_EXCLUSIONS = [
+  "word:Intern", "word:Interns", "Internship", "Praktikant",
+  "Praktikum", "Masterarbeit", "Bachelorarbeit", "Werkstudent"
 ];
 
 const STYLE = `
@@ -124,6 +142,21 @@ export function FilterBuilder({
     set({ ats: next.length ? next : filters.ats });
   };
 
+  const currentExp = filters.experience ?? "entry";
+  const handleExperienceChange = (exp: ExperienceLevel) => {
+    let nextNegative = [...filters.negative];
+    if (exp === "entry") {
+      nextNegative = cleanChips([...nextNegative, ...SENIOR_EXCLUSIONS]).filter((x) => !JUNIOR_EXCLUSIONS.includes(x));
+    } else if (exp === "senior") {
+      nextNegative = cleanChips([...nextNegative.filter((x) => !SENIOR_EXCLUSIONS.includes(x)), ...JUNIOR_EXCLUSIONS]);
+    } else if (exp === "all") {
+      nextNegative = nextNegative.filter((x) => !SENIOR_EXCLUSIONS.includes(x));
+    } else if (exp === "mid") {
+      nextNegative = nextNegative.filter((x) => !["word:Senior", "word:Sr", "III"].includes(x));
+    }
+    set({ experience: exp, negative: nextNegative });
+  };
+
   return (
     <fieldset disabled={disabled} className="space-y-4">
       <style>{STYLE}</style>
@@ -155,6 +188,45 @@ export function FilterBuilder({
         <Label>Exclude</Label>
         <KeywordField ariaLabel="Exclude" values={filters.negative} tone="exc" placeholder="manager, sales, contract…" onChange={(v) => set({ negative: v })} />
       </div>}
+
+      {!employer && (
+        <div>
+          <Label hint="filters job postings and titles by seniority">
+            <span className="inline-flex items-center gap-1.5">
+              <GraduationCap className="size-3.5 text-brand-text" /> Experience level
+            </span>
+          </Label>
+          <div className="flex flex-wrap gap-2">
+            {EXPERIENCE_OPTIONS.map((opt) => {
+              const active = currentExp === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  title={opt.desc}
+                  onClick={() => handleExperienceChange(opt.id)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all max-sm:min-h-[44px]",
+                    active
+                      ? "border-brand bg-brand-soft text-brand-text shadow-sm ring-1 ring-brand/30"
+                      : "border-border text-muted hover:border-border-hover hover:text-foreground hover:bg-surface-hover",
+                  )}
+                >
+                  {opt.id === "entry" && <GraduationCap className="size-3.5" />}
+                  {opt.id === "mid" && <Briefcase className="size-3.5" />}
+                  {opt.id === "senior" && <Sparkles className="size-3.5" />}
+                  <span>{opt.label}</span>
+                </button>
+              );
+            })}
+          </div>
+          {currentExp === "entry" && (
+            <p className="mt-1.5 text-[11px] text-faint">
+              Active: <strong>Fresher / 0–2 yrs</strong>. Automatically blocks Senior, Lead, Staff, Principal, and Manager titles and drops postings requiring 3+ years experience.
+            </p>
+          )}
+        </div>
+      )}
 
       <div>
         <Label hint="matches any city, region, country, or Remote">
@@ -217,6 +289,33 @@ export function FilterBuilder({
           </div>
         </div>
       </div>}
+
+      {!employer && (
+        <div className="rounded-xl border border-border/70 bg-surface/30 p-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Building2 className="size-4 text-brand-text" />
+              <span className="text-[13px] font-medium text-foreground">
+                Company Portals: Deloitte India &amp; Tracked Employers
+              </span>
+            </div>
+            <a
+              href="/portals"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand-soft px-3 py-1 text-xs font-medium text-brand-text hover:bg-brand/20 transition-colors"
+            >
+              <span>Manage &amp; Scan Portals</span>
+              <ExternalLink className="size-3" />
+            </a>
+          </div>
+          <p className="mt-1.5 text-[11.5px] text-muted leading-relaxed">
+            The sources above (Greenhouse, Workday, etc.) are <strong>ATS platforms</strong> hosting thousands of companies.
+            Individual companies like <strong>Deloitte India</strong> (powered by SAP SuccessFactors) are tracked directly in your{" "}
+            <code className="text-foreground">portals.yml</code> and can be scanned from the{" "}
+            <a href="/portals" className="text-brand-text underline hover:opacity-80">Portals</a> page or via{" "}
+            <code className="text-foreground">node scan.mjs --company &quot;Deloitte India&quot;</code>.
+          </p>
+        </div>
+      )}
 
       {!employer && <button
         type="button"

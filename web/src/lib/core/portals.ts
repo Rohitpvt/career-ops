@@ -23,7 +23,7 @@ import { workplacePolicyConfig } from "./workplace-policy.mjs";
  *   location block_hard > always_allow > block > allow (case-insensitive substring);
  *   block_hard is the one tier always_allow cannot override (scan.mjs, #2956)
  */
-type FilterLists = Pick<ExploreFilters, "positive" | "negative" | "allow" | "block" | "alwaysAllow" | "blockHard">;
+type FilterLists = Pick<ExploreFilters, "positive" | "negative" | "allow" | "block" | "alwaysAllow" | "blockHard" | "experience">;
 
 function listFrom(v: unknown): string[] {
   return cleanChips(v);
@@ -42,17 +42,39 @@ export function writeTempPortals(f: FilterLists): string {
   // Keep it in ad-hoc scans too; malformed config must not disable the guard.
   let text = serializePortals(f);
   let policy: unknown;
+  let basePortals: Record<string, unknown> | null = null;
   try {
-    const parsed = yaml.load(fs.readFileSync(path.join(careerOpsRoot(), "portals.yml"), "utf8"));
-    policy = workplacePolicyConfig(parsed);
+    basePortals = yaml.load(fs.readFileSync(path.join(careerOpsRoot(), "portals.yml"), "utf8")) as Record<string, unknown>;
+    policy = workplacePolicyConfig(basePortals);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
+  const overlay = (yaml.load(text) || {}) as Record<string, unknown>;
   if (policy !== undefined) {
-    const overlay = (yaml.load(text) || {}) as Record<string, unknown>;
     overlay.location_filter = { ...(overlay.location_filter as Record<string, unknown> || {}), workplace_policy: policy };
-    text = yaml.dump(overlay, { noRefs: true, lineWidth: 120 });
   }
+  // Experience filter handling:
+  const exp = f.experience ?? "entry";
+  if (exp === "entry") {
+    overlay.skip_tiers = ["senior"];
+    overlay.experience_filter = {
+      enabled: true,
+      stretch_years: 1,
+      action: "drop",
+      years: 1,
+      concurrency: 4,
+    };
+  } else if (exp === "senior") {
+    overlay.skip_tiers = ["junior"];
+    overlay.experience_filter = { enabled: false };
+  } else if (exp === "all") {
+    overlay.skip_tiers = [];
+    overlay.experience_filter = { enabled: false };
+  } else if (basePortals && basePortals.experience_filter) {
+    overlay.experience_filter = basePortals.experience_filter;
+    if (basePortals.skip_tiers) overlay.skip_tiers = basePortals.skip_tiers;
+  }
+  text = yaml.dump(overlay, { noRefs: true, lineWidth: 120 });
   fs.writeFileSync(file, text, "utf8");
   return file;
 }
